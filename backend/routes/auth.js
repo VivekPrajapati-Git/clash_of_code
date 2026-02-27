@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken'); // You might need to install this: npm i jsonwebtoken
-const db = require('../config/db.js')
+const pool = require('../config/db.js')
 
 router.post('/login', async (req, res) => {
     const { staff_id, password } = req.body;
@@ -13,6 +13,7 @@ router.post('/login', async (req, res) => {
     try {
         // Query the MySQL database for the staff member
         const [results] = await pool.query('SELECT * FROM Staff WHERE staff_id = ?', [staff_id]);
+        console.log(results);
 
         if (results.length === 0) {
             return res.status(401).json({ message: "Invalid staff_id or password" });
