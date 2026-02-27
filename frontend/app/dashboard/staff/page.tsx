@@ -1,10 +1,9 @@
 import React from 'react'
+import { StaffShift } from './_components/staff-shift'
 
 const page = () => {
   return (
-    <div>
-      This Is Staff Page
-    </div>
+    <StaffShift />
   )
 }
 
