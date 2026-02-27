@@ -8,6 +8,9 @@ router.post('/move-patient', doctorController.movePatient);
 // Route to update a patient's infection status
 router.post('/status', doctorController.updatePatientStatus);
 
+// Route to update a patient's severity
+router.post('/severity', doctorController.updatePatientSeverity);
+
 // Route to view all pending reports (must be before /reports/:pfid)
 router.get('/reports/pending', doctorController.getPendingReports);
 

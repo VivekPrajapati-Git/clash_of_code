@@ -115,7 +115,64 @@ const doctorController = {
         }
     },
 
-    // 3. View all reports of a specific patient (from MongoDB)
+    // 3. Update patient severity (Doctor only)
+    updatePatientSeverity: async (req, res) => {
+        const { pfid, severity, actor_id } = req.body;
+
+        if (!pfid || !severity || !actor_id) {
+            return res.status(400).json({ message: "pfid, severity, and actor_id are required" });
+        }
+
+        // Format to match ENUM ('Critical', 'Moderate', 'Stable')
+        const formattedSeverity = severity.charAt(0).toUpperCase() + severity.slice(1).toLowerCase();
+        const validSeverities = ['Critical', 'Moderate', 'Stable'];
+
+        if (!validSeverities.includes(formattedSeverity)) {
+            return res.status(400).json({ message: `Invalid severity. Must be one of: ${validSeverities.join(', ')}` });
+        }
+
+        try {
+            // Verify actor is a DOCTOR
+            const [staff] = await pool.query('SELECT role FROM Staff WHERE staff_id = ?', [actor_id]);
+            if (staff.length === 0) {
+                return res.status(404).json({ message: "Staff member not found." });
+            }
+            if (staff[0].role !== 'DOCTOR') {
+                return res.status(403).json({ message: "Forbidden: Only doctors can update patient severity." });
+            }
+
+            // Check if patient exists
+            const [patient] = await pool.query('SELECT * FROM Patients WHERE pfid = ?', [pfid]);
+            if (patient.length === 0) {
+                return res.status(404).json({ message: "Patient not found" });
+            }
+
+            // Update severity
+            await pool.query(
+                'UPDATE Patients SET severity = ? WHERE pfid = ?',
+                [formattedSeverity, pfid]
+            );
+
+            // Log this as an interaction
+            const action_type = 'UPDATE_SEVERITY';
+            await pool.query(
+                `INSERT INTO Hospital_Interactions (actor_id, target_id, action_type)
+                 VALUES (?, ?, ?)`,
+                [actor_id, pfid, action_type]
+            );
+
+            return res.status(200).json({
+                message: "Patient severity updated successfully",
+                pfid: pfid,
+                severity: formattedSeverity
+            });
+        } catch (error) {
+            console.error("Error updating patient severity:", error);
+            return res.status(500).json({ message: "Internal server error" });
+        }
+    },
+
+    // 4. View all reports of a specific patient (from MongoDB)
     getPatientReports: async (req, res) => {
         const { pfid } = req.params;
 

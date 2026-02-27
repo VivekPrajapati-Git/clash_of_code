@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS Staff (
 -- Table: Patients
 CREATE TABLE IF NOT EXISTS Patients (
     pfid VARCHAR(50) PRIMARY KEY,     -- The Patient's unique ID used as the Link Key
-    current_status ENUM('STABLE', 'ISOLATED', 'CRITICAL') NOT NULL
+    current_status ENUM('STABLE', 'ISOLATED', 'CRITICAL') NOT NULL,
+    severity ENUM('Critical', 'Moderate', 'Stable') DEFAULT 'Stable' -- Doctor-assessed severity
 );
 
 -- Table: Equipment
