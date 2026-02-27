@@ -103,6 +103,15 @@ const doctorController = {
                 }
             }
 
+            // Emit real-time update
+            if (req.app.get('io')) {
+                req.app.get('io').emit('patient_status_updated', {
+                    pfid: pfid,
+                    new_status: status.toUpperCase(),
+                    equipment_contaminated: equipmentUpdatedCount > 0
+                });
+            }
+
             return res.status(200).json({
                 message: "Patient status updated successfully",
                 pfid: pfid,
@@ -160,6 +169,14 @@ const doctorController = {
                  VALUES (?, ?, ?)`,
                 [actor_id, pfid, action_type]
             );
+
+            // Emit real-time update
+            if (req.app.get('io')) {
+                req.app.get('io').emit('patient_severity_updated', {
+                    pfid: pfid,
+                    severity: formattedSeverity
+                });
+            }
 
             return res.status(200).json({
                 message: "Patient severity updated successfully",

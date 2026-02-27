@@ -73,6 +73,11 @@ const admitPatient = async (req, res) => {
             { pfid, location_id, time: timestamp }
         );
 
+        // Emit real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('patient_admitted', { pfid, location: location_id, timestamp });
+        }
+
         res.status(200).json({
             message: "Patient admitted successfully (Auto-assigned room)",
             pfid,
@@ -84,7 +89,6 @@ const admitPatient = async (req, res) => {
         console.error('Error admitting patient:', error);
         res.status(500).json({ error: 'Internal server error while admitting patient' });
     } finally {
-        // Only close session if you are actually using it, but it's safe to call close
         await session.close();
     }
 };
@@ -100,7 +104,6 @@ const transferPatient = async (req, res) => {
     const session = driver.session();
 
     try {
-        // Find the patient's previous location from MySQL for the response
         const [rows] = await pool.query(
             `SELECT location_id FROM Hospital_Interactions 
              WHERE target_id = ? AND action_type = 'AUTO_TRIGGER'
@@ -109,7 +112,6 @@ const transferPatient = async (req, res) => {
         );
         const previous_location = rows.length > 0 ? rows[0].location_id : 'UNKNOWN';
 
-        // [MySQL] Insert into Hospital_Interactions Log
         await pool.query(
             `INSERT INTO Hospital_Interactions 
             (actor_id, target_id, location_id, action_type, timestamp) 
@@ -117,7 +119,6 @@ const transferPatient = async (req, res) => {
             ['system_trigger', pfid, new_location_id, 'AUTO_TRIGGER', new Date(timestamp)]
         );
 
-        // [Neo4j] Create new VISITED relationship
         await session.run(
             `
             MERGE (p:Patient {pfid: $pfid})
@@ -127,6 +128,11 @@ const transferPatient = async (req, res) => {
             `,
             { pfid, new_location_id, time: timestamp }
         );
+
+        // Emit real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('patient_transferred', { pfid, previous_location, new_location: new_location_id, timestamp });
+        }
 
         res.status(200).json({
             message: "Transfer successful",
@@ -152,13 +158,17 @@ const dischargePatient = async (req, res) => {
     const timestamp = new Date().toISOString();
 
     try {
-        // [MySQL] Insert into Hospital_Interactions Log
         await pool.query(
             `INSERT INTO Hospital_Interactions 
             (actor_id, target_id, location_id, action_type, timestamp) 
             VALUES (?, ?, NULL, ?, ?)`,
             ['system_trigger', pfid, 'DISCHARGE', new Date(timestamp)]
         );
+
+        // Emit real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('patient_discharged', { pfid, timestamp });
+        }
 
         res.status(200).json({
             message: "Patient discharged",
