@@ -152,12 +152,26 @@ const doctorController = {
             }
 
             // Find all reports where clinical_verification.status is PENDING
-            const reports = await Report.find({ "clinical_verification.status": "PENDING" }).sort({ createdAt: -1 });
+            // Sort by AI priority (highest first)
+            const reports = await Report.find(
+                { "clinical_verification.status": "PENDING" }
+            ).sort({ "ai_layer.preliminary_priority": -1 });
+
+            // Format the response to exactly what the frontend needs
+            const formattedReports = reports.map(report => ({
+                id: report._id,
+                priority: report.ai_layer ? report.ai_layer.preliminary_priority : 0,
+                patient_id: report.patient_sql_id,
+                status: report.clinical_verification.status,
+                test_type: report.test_data ? report.test_data.type : 'UNKNOWN',
+                test_result: report.test_data ? report.test_data.result : 'UNKNOWN',
+                data: report.test_data
+            }));
 
             return res.status(200).json({
                 message: "Pending reports retrieved successfully",
-                count: reports.length,
-                reports: reports
+                count: formattedReports.length,
+                reports: formattedReports
             });
         } catch (error) {
             console.error("Error fetching pending reports:", error);
