@@ -5,5 +5,8 @@
     "express": "^5.2.1",
     "mysql2": "^3.18.2",
     "neo4j-driver": "^6.0.1"
+    "express": "^5.2.1",
+    "mongoose": "^9.2.3",
+    "mysql2": "^3.18.2"
   }
 }
