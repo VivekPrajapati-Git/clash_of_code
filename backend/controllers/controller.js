@@ -2,7 +2,7 @@ const pool = require('../config/db');
 const driver = require('../config/neo4j');
 
 const admitPatient = async (req, res) => {
-    const { pfid } = req.body;
+    const { pfid } = req.body || {};
 
     // We auto-assign the location now, so we only need pfid
     if (!pfid) {
@@ -60,7 +60,7 @@ const admitPatient = async (req, res) => {
 };
 
 const transferPatient = async (req, res) => {
-    const { pfid, new_location_id } = req.body;
+    const { pfid, new_location_id } = req.body || {};
 
     if (!pfid || !new_location_id) {
         return res.status(400).json({ error: 'pfid and new_location_id are required' });
@@ -113,7 +113,7 @@ const transferPatient = async (req, res) => {
 };
 
 const dischargePatient = async (req, res) => {
-    const { pfid } = req.body;
+    const { pfid } = req.body || {};
 
     if (!pfid) {
         return res.status(400).json({ error: 'pfid is required' });
