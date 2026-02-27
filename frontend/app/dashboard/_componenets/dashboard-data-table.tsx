@@ -28,7 +28,6 @@ const DashboardDataTable = ({ data }: { data: DashboardDataTableInput[] }) => {
                     <TableHead>Location ID</TableHead>
                     <TableHead>Actor ID</TableHead>
                     <TableHead>Target ID</TableHead>
-                    <TableHead>Risk Index</TableHead>
                     <TableHead>Action Type</TableHead>
                     <TableHead>Timestamp</TableHead>
                 </TableRow>

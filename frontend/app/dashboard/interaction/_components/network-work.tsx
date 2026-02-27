@@ -1,8 +1,9 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Graph } from "react-d3-graph"
 import { useState, useEffect, useRef } from "react"
+import test from "node:test"
 
 // --- Types ---
 export interface Node {
@@ -26,16 +27,16 @@ interface NetworkGraphProps {
 
 // --- Node color map ---
 const groupColors: Record<string, string> = {
-  Patient: "#4f46e5",  // indigo
-  Location: "#16a34a", // green
-  Doctor: "#f59e0b",   // amber
-  Equipment:"black",
-  default: "#9ca3af",  // gray fallback
+  Patient: "#c00707",
+  Location: "#16a34a",
+  Doctor: "#f59e0b",
+  Equipment: "#8494ff",
+  default: "#9ca3af",
 }
 
 export function NetworkGraph({ data }: NetworkGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [dimensions, setDimensions] = useState({ width: 600, height: 400 })
+  const [dimensions, setDimensions] = useState({ width: 600, height: 600 })
 
   // Make the graph responsive to the card size
   useEffect(() => {
@@ -60,7 +61,7 @@ export function NetworkGraph({ data }: NetworkGraphProps) {
   const config = {
     nodeHighlightBehavior: true,
     node: {
-      size: 400,
+      size: 500,
       highlightStrokeColor: "#000",
       labelProperty: "label",
     },
@@ -93,6 +94,17 @@ export function NetworkGraph({ data }: NetworkGraphProps) {
           config={config as any}
         />
       </CardContent>
+      <CardFooter className="flex flex-wrap gap-4 pt-4">
+        {Object.entries(groupColors).map(([group, color]) => (
+          <div key={group} className="flex items-center gap-2 text-sm">
+            <span
+              className="inline-block h-4 w-4 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <span>{group}</span>
+          </div>
+        ))}
+      </CardFooter>
     </Card>
   )
 }
