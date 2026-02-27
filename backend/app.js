@@ -18,6 +18,9 @@ app.use('/api/presence', presenceRoutes);
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+const statsRoutes = require('./routes/statsRoutes');
+app.use('/api/stats', statsRoutes);
+
 
 const neo4jRoutes = require('./routes/neo4jRoutes');
 app.use('/api/neo4j', neo4jRoutes);
