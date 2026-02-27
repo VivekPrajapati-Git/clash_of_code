@@ -1,9 +1,12 @@
 import React from 'react'
+import { LoginForm } from './_components/login-form'
 
 const page = () => {
     return (
-        <div>
-            <h1 className='text-2xl text-primary'>This Is Login Page</h1>
+        <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+            <div className="w-full max-w-sm">
+                <LoginForm />
+            </div>
         </div>
     )
 }
