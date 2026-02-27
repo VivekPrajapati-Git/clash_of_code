@@ -43,7 +43,7 @@ exports.logInteraction = async (req, res) => {
 
 exports.getAllInteractions = async (req, res) => {
     try {
-        const { limit = 100 } = req.query;
+        const { limit = 50 } = req.query;
         // Fetch recent interactions from MySQL for Detailed DB Analysis
         const query = 'SELECT * FROM Hospital_Interactions ORDER BY timestamp DESC LIMIT ?';
         const [interactions] = await pool.query(query, [parseInt(limit, 10)]);
