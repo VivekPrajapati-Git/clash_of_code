@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken'); // You might need to install this: npm i jsonwebtoken
-const db = require('../utils/db.js')
+const db = require('../config/db.js')
+const jwt = require('jsonwebtoken'); // You might need to install this: npm i jsonwebtoken
+const db = require('../config/db.js')
 
 // Replace this with your actual database connection pool/instance
 // const db = require('../utils/db');
@@ -38,9 +40,9 @@ router.post('/login', (req, res) => {
         // Generate JWT token 
         const secretKey = process.env.JWT_SECRET || 'your_super_secret_key'; // Use env variable in prod
         const token = jwt.sign(
-            { staff_id: user.staff_id, role: user.role, name: user.name }, 
-            secretKey, 
-            { expiresIn: '1h' } 
+            { staff_id: user.staff_id, role: user.role, name: user.name },
+            secretKey,
+            { expiresIn: '1h' }
         );
 
         // Required response according to specification
