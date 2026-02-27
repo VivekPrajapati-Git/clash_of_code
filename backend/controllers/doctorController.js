@@ -152,7 +152,12 @@ const doctorController = {
             }
 
             // Find all reports where clinical_verification.status is PENDING
-            const reports = await Report.find({ "clinical_verification.status": "PENDING" }).sort({ createdAt: -1 });
+            // Sort by AI priority (highest first)
+            // Select only specific fields to return
+            const reports = await Report.find(
+                { "clinical_verification.status": "PENDING" },
+                { "patient_sql_id": 1, "test_data.type": 1, "ai_layer.preliminary_priority": 1, "_id": 1 }
+            ).sort({ "ai_layer.preliminary_priority": -1 });
 
             return res.status(200).json({
                 message: "Pending reports retrieved successfully",
