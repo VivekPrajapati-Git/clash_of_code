@@ -38,6 +38,11 @@ const navs = [
         icon: LogsIcon
     },
     {
+        label: "Interaction",
+        link: "interaction",
+        icon: LogsIcon
+    },
+    {
         label: "Report",
         link: "report",
         icon: NotepadText
