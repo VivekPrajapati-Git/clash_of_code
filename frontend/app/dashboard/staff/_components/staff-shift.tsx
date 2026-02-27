@@ -44,7 +44,7 @@ export function StaffShift() {
         <CardTitle>Weekly Shift Details</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[580px] w-full">
+        <ChartContainer config={chartConfig} className="h-145 w-full">
           <BarChart accessibilityLayer data={chartData}>
             <CartesianGrid vertical={false} />
             <ChartTooltip

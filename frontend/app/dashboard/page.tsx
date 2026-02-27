@@ -1,7 +1,7 @@
 import CardSection from "./_componenets/card-section"
 import DashboardDataTable from "./_componenets/dashboard-data-table"
 
-const page = () => {
+const page = async () => {
 
   const data = {
     "active_infections": 4,
@@ -108,9 +108,11 @@ const page = () => {
         "action_type": "string",
         "timestamp": "string"
       },
-  
+
     ]
   }
+
+  // const res = await fetch("")
 
   return (
     <section>

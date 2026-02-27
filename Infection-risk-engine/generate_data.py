@@ -1,133 +1,155 @@
 """
-generate_infection_data.py
---------------------------
-Synthetic infection dataset generator for Vigilance-Net graph ML training.
+train.py
+--------
+Trains a Logistic Regression model on synthetic infection graph data
+for the Vigilance-Net risk prediction pipeline.
 
-Features generated:
-    degree              — number of direct contacts a patient node has
-    infected_neighbors  — number of those contacts who are infected
-    exposure_time       — cumulative exposure duration in minutes
-    shortest_path       — graph distance to nearest confirmed infection source
-    centrality          — betweenness/importance score in the contact graph (0–1)
-
-Label:
-    infected            — binary (0 = not infected, 1 = infected)
-
-Risk formula (epidemiologically motivated):
-    risk = (infected_neighbors * 3)
-         + (exposure_time / 120)
-         + (1 / shortest_path) * 2
-         + (centrality * 2)
-         + (degree * 0.05)
-
-    probability = sigmoid(risk - dynamic_offset)
-    infected    = 1 if probability > 0.5 else 0
-
-Class balance: ~40% infected (realistic hospital outbreak scenario).
+Outputs:
+    models/risk_model.pkl    — trained LogisticRegression
+    models/scaler.pkl        — fitted StandardScaler (must be saved alongside model)
 """
 
-import numpy as np
+import os
+import joblib
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, roc_auc_score, confusion_matrix
+from sklearn.model_selection import cross_val_score, train_test_split, StratifiedKFold
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-RANDOM_SEED    = 42
-N_SAMPLES      = 3000
-OUTPUT_PATH    = "synthetic_infection_data.csv"
+DATA_PATH   = "synthetic_infection_data.csv"
+MODEL_DIR   = "models"
+MODEL_PATH  = os.path.join(MODEL_DIR, "risk_model.pkl")
+SCALER_PATH = os.path.join(MODEL_DIR, "scaler.pkl")
 
-# Feature ranges (epidemiologically justified)
-DEGREE_RANGE          = (0, 25)    # contact graph degree
-INFECTED_NBR_RANGE    = (0, 6)     # infected neighbors
-EXPOSURE_TIME_RANGE   = (0, 300)   # minutes
-SHORTEST_PATH_RANGE   = (1, 4)     # hops to nearest source (min=1 avoids div/0)
+FEATURES = [
+    "degree",
+    "infected_neighbors",
+    "exposure_time",
+    "shortest_path",
+    "centrality",
+]
+TARGET = "infected"
 
-# Risk weights
-W_INFECTED_NEIGHBORS = 3.0
-W_EXPOSURE_TIME      = 1 / 120     # normalizes 0–300 min → 0–2.5
-W_SHORTEST_PATH      = 2.0         # applied as W / path (higher weight for closer source)
-W_CENTRALITY         = 2.0
-W_DEGREE             = 0.05
-
-# Sigmoid sharpness — higher = more decisive boundary, lower = more uncertainty
-SIGMOID_STEEPNESS = 1.0
-
-# Class balance target: offset = mean(risk) + CLASS_BIAS
-# Positive bias → fewer infected (harder to be classified positive)
-CLASS_BIAS = 1.5   # Results in ~40% infected; set to 0 for ~50%
+TEST_SIZE   = 0.2
+RANDOM_SEED = 42
+CV_FOLDS    = 5
 
 
 # ---------------------------------------------------------------------------
-# Generation
+# Load
 # ---------------------------------------------------------------------------
 
-def generate_features(n: int, rng: np.random.Generator) -> dict[str, np.ndarray]:
-    return {
-        "degree":             rng.integers(*DEGREE_RANGE,        size=n),
-        "infected_neighbors": rng.integers(*INFECTED_NBR_RANGE,  size=n),
-        "exposure_time":      rng.integers(*EXPOSURE_TIME_RANGE, size=n),
-        "shortest_path":      rng.integers(*SHORTEST_PATH_RANGE, size=n),
-        "centrality":         rng.random(n),
-    }
+def load_data(path: str) -> tuple[pd.DataFrame, pd.Series]:
+    df = pd.read_csv(path)
+
+    missing = [f for f in FEATURES + [TARGET] if f not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns in dataset: {missing}")
+
+    X = df[FEATURES]
+    y = df[TARGET]
+    return X, y
 
 
-def compute_risk(features: dict[str, np.ndarray]) -> np.ndarray:
-    return (
-        features["infected_neighbors"] * W_INFECTED_NEIGHBORS
-        + features["exposure_time"]    * W_EXPOSURE_TIME
-        + (1 / features["shortest_path"]) * W_SHORTEST_PATH
-        + features["centrality"]       * W_CENTRALITY
-        + features["degree"]           * W_DEGREE
+# ---------------------------------------------------------------------------
+# Train
+# ---------------------------------------------------------------------------
+
+def train(X: pd.DataFrame, y: pd.Series) -> tuple[LogisticRegression, StandardScaler]:
+    """
+    Fits a StandardScaler + LogisticRegression on the training split.
+    Scaler is fit ONLY on X_train to prevent data leakage.
+    """
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=TEST_SIZE,
+        random_state=RANDOM_SEED,
+        stratify=y,          # preserves class ratio in both splits
     )
 
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled  = scaler.transform(X_test)
 
-def risk_to_label(
-    risk: np.ndarray,
-    steepness: float = SIGMOID_STEEPNESS,
-    bias: float = CLASS_BIAS,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Converts raw risk scores to binary infection labels via sigmoid.
+    model = LogisticRegression(max_iter=1000, random_state=RANDOM_SEED)
+    model.fit(X_train_scaled, y_train)
 
-    The offset is derived dynamically from the actual risk distribution so
-    class balance stays consistent regardless of weight changes.
-    """
-    offset = risk.mean() + bias
-    probability = 1 / (1 + np.exp(-steepness * (risk - offset)))
-    infected = (probability > 0.5).astype(int)
-    return infected, probability
+    evaluate(model, scaler, X_train, X_test, y_train, y_test, X, y)
+
+    return model, scaler
 
 
-def build_dataframe(
-    features: dict[str, np.ndarray],
-    infected: np.ndarray,
-    probability: np.ndarray,
-) -> pd.DataFrame:
-    return pd.DataFrame({
-        **features,
-        "infection_probability": probability.round(4),
-        "infected": infected,
-    })
+# ---------------------------------------------------------------------------
+# Evaluate
+# ---------------------------------------------------------------------------
+
+def evaluate(
+    model: LogisticRegression,
+    scaler: StandardScaler,
+    X_train: pd.DataFrame,
+    X_test: pd.DataFrame,
+    y_train: pd.Series,
+    y_test: pd.Series,
+    X_full: pd.DataFrame,
+    y_full: pd.Series,
+) -> None:
+    X_test_scaled = scaler.transform(X_test)
+    y_pred  = model.predict(X_test_scaled)
+    y_proba = model.predict_proba(X_test_scaled)[:, 1]
+
+    print("=" * 50)
+    print("  Vigilance-Net — Model Training Report")
+    print("=" * 50)
+    print(f"  Train size : {len(X_train):,}  |  Test size : {len(X_test):,}")
+    print(f"  Infected % (test): {y_test.mean():.1%}\n")
+
+    print("Classification Report:")
+    print(classification_report(y_test, y_pred, digits=4))
+
+    print(f"ROC-AUC      : {roc_auc_score(y_test, y_proba):.4f}")
+
+    tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
+    print(f"Confusion    : TP={tp}  FP={fp}  FN={fn}  TN={tn}")
+    print(f"Sensitivity  : {tp / (tp + fn):.4f}  (recall for infected class)")
+    print(f"Specificity  : {tn / (tn + fp):.4f}  (recall for non-infected class)")
+
+    # Cross-validation on full dataset using a pipeline (no leakage)
+    pipe = Pipeline([("scaler", StandardScaler()), ("model", LogisticRegression(max_iter=1000))])
+    cv   = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_SEED)
+    cv_scores = cross_val_score(pipe, X_full, y_full, cv=cv, scoring="roc_auc")
+    print(f"\n{CV_FOLDS}-Fold CV ROC-AUC : {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
+
+    print("\nFeature Coefficients (scaled):")
+    for feat, coef in sorted(
+        zip(FEATURES, model.coef_[0]),
+        key=lambda x: abs(x[1]),
+        reverse=True,
+    ):
+        bar = "█" * int(abs(coef) * 3)
+        sign = "+" if coef > 0 else "-"
+        print(f"  {feat:<22} {sign}{abs(coef):.4f}  {bar}")
+
+    print("=" * 50)
 
 
-def print_summary(df: pd.DataFrame) -> None:
-    total    = len(df)
-    n_inf    = df["infected"].sum()
-    n_not    = total - n_inf
-    inf_rate = n_inf / total
+# ---------------------------------------------------------------------------
+# Save
+# ---------------------------------------------------------------------------
 
-    print("=" * 45)
-    print("  Synthetic Infection Dataset Summary")
-    print("=" * 45)
-    print(f"  Total samples   : {total:,}")
-    print(f"  Infected (1)    : {n_inf:,}  ({inf_rate:.1%})")
-    print(f"  Not infected (0): {n_not:,}  ({1 - inf_rate:.1%})")
-    print(f"  Output file     : {OUTPUT_PATH}")
-    print("=" * 45)
-    print(df.head(10).to_string(index=False))
-    print()
+def save_artifacts(model: LogisticRegression, scaler: StandardScaler) -> None:
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    joblib.dump(model, MODEL_PATH)
+    joblib.dump(scaler, SCALER_PATH)
+    print(f"\n  Model  saved → {MODEL_PATH}")
+    print(f"  Scaler saved → {SCALER_PATH}")
+    print("\nDone.\n")
 
 
 # ---------------------------------------------------------------------------
@@ -135,16 +157,9 @@ def print_summary(df: pd.DataFrame) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    rng = np.random.default_rng(RANDOM_SEED)
-
-    features    = generate_features(N_SAMPLES, rng)
-    risk        = compute_risk(features)
-    infected, probability = risk_to_label(risk)
-    df          = build_dataframe(features, infected, probability)
-
-    df.to_csv(OUTPUT_PATH, index=False)
-    print_summary(df)
-    print(df["infected"].value_counts())
+    X, y = load_data(DATA_PATH)
+    model, scaler = train(X, y)
+    save_artifacts(model, scaler)
 
 
 if __name__ == "__main__":
