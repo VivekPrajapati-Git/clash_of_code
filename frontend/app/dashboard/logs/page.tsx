@@ -1,9 +1,12 @@
-import React from 'react'
+import { NetworkGraph } from './_components/network-work'
+import testData from "./testData.json"
 
 const page = () => {
+  const data = testData.data
+
   return (
     <div>
-      This Is logs Page
+      <NetworkGraph data={data} />
     </div>
   )
 }

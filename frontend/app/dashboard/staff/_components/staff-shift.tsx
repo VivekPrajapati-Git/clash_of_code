@@ -20,12 +20,12 @@ import {
 export const description = "A bar chart with negative values"
 
 const chartData = [
-  { day: "Sunday", hours: 186, isNight: false },
-  { day: "Monday", hours: 205, isNight: true },
-  { day: "Tuesday", hours: -207, isNight: false },
-  { day: "Wednessday", hours: 173, isNight: true },
-  { day: "Thursday", hours: -209, isNight: true },
-  { day: "Saturday", hours: 214, isNight: false },
+  { day: "Sunday", hours: 8, isNight: false },
+  { day: "Monday", hours: 7, isNight: true },
+  { day: "Tuesday", hours: 7, isNight: false },
+  { day: "Wednessday", hours: 6, isNight: true },
+  { day: "Thursday", hours: 5, isNight: true },
+  { day: "Saturday", hours: 9, isNight: false },
 ]
 
 const chartConfig = {
