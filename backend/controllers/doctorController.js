@@ -162,7 +162,9 @@ const doctorController = {
                 id: report._id,
                 priority: report.ai_layer ? report.ai_layer.preliminary_priority : 0,
                 patient_id: report.patient_sql_id,
+                status: report.clinical_verification.status,
                 test_type: report.test_data ? report.test_data.type : 'UNKNOWN',
+                test_result: report.test_data ? report.test_data.result : 'UNKNOWN',
                 data: report.test_data
             }));
 
