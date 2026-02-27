@@ -33,15 +33,15 @@ const admitPatient = async (req, res) => {
         );
 
         // [Neo4j] Create VISITED relationship
-        // await session.run(
-        //     `
-        //     MERGE (p:Patient {pfid: $pfid})
-        //     MERGE (l:Location {location_id: $location_id})
-        //     MERGE (p)-[v:VISITED {time: $time}]->(l)
-        //     RETURN p, v, l
-        //     `,
-        //     { pfid, location_id, time: timestamp }
-        // );
+        await session.run(
+            `
+            MERGE (p:Patient {pfid: $pfid})
+            MERGE (l:Location {location_id: $location_id})
+            MERGE (p)-[v:VISITED {time: $time}]->(l)
+            RETURN p, v, l
+            `,
+            { pfid, location_id, time: timestamp }
+        );
 
         res.status(200).json({
             message: "Patient admitted successfully (Auto-assigned room)",
