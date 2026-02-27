@@ -1,6 +1,4 @@
 "use client"
-
-import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -10,38 +8,55 @@ import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { useRouter } from "next/navigation"
 
 const formSchema = z.object({
-  userID: z
+  staff_id: z
     .string(),
   password: z
     .string()
 })
 
 export function LoginForm() {
+  const router = useRouter()
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      userID: "",
+      staff_id: "",
       password: "",
     },
   })
+  async function onSubmit(data: z.infer<typeof formSchema>) {
+    try {
+      const res = await fetch(`http://192.168.0.147:3000/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
-    console.log(data)
+      const result = await res.json()
+
+      toast.success(result?.message || "Login successful")
+      router.push("/dashboard")
+      console.log(result)
+    } catch (error: any) {
+      toast.error(error?.message || "Something went wrong")
+    } finally{
+      form.reset()
+    }
   }
 
   return (
@@ -53,16 +68,16 @@ export function LoginForm() {
         <form id="login-form" onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Controller
-              name="userID"
+              name="staff_id"
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="userID">
-                    UserID
+                  <FieldLabel htmlFor="staff_id">
+                    Staff ID
                   </FieldLabel>
                   <Input
                     {...field}
-                    id="userID"
+                    id="staff_id"
                     suppressHydrationWarning
                     aria-invalid={fieldState.invalid}
                   />
