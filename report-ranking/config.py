@@ -4,34 +4,34 @@
 # Raw weight contributions (will be summed and normalized to 1–10)
 # Max possible raw score = 4 + 3 + 2 + 1 = 10  (already in range, but we clamp for safety)
 
-DISEASE_WEIGHTS: dict[str, int] = {
+DISEASE_WEIGHTS = {
     "MDR_Bacteria": 4,
+    "COVID-19": 3,
     "TB": 3,
-    "COVID": 2,
-    "General_Infection": 1,
+    "General_Infection": 1
 }
 
 STATUS_WEIGHTS: dict[str, int] = {
-    "Positive": 3,
-    "Borderline": 2,
-    "Negative": 1,
+    "POSITIVE": 3,
+    "BORDERLINE": 1,
+    "NEGATIVE": -2
 }
 
 SEVERITY_WEIGHTS: dict[str, int] = {
-    "Critical": 2,
+    "Critical": 3,
     "Moderate": 1,
     "Stable": 0,
 }
 
 WARD_WEIGHTS: dict[str, int] = {
-    "ICU": 1,
+    "ICU": 2,
     "Isolation": 1,
     "General": 0,
 }
 
 # Normalization bounds
-RAW_MIN: int = 2   # Negative + Stable + General + General_Infection
-RAW_MAX: int = 10  # Positive + Critical + ICU + MDR_Bacteria
+RAW_MIN: int = -1   # Negative + Stable + General + General_Infection
+RAW_MAX: int = 12  # Positive + Critical + ICU + MDR_Bacteria
 
 # Priority thresholds (applied to final 1–10 score)
 PRIORITY_THRESHOLDS: dict[str, tuple[int, int]] = {

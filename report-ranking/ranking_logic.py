@@ -3,6 +3,8 @@ from schemas import RankingRequest, RankingResponse
 from utils import normalize_score, get_priority_level
 from config import (
     DISEASE_WEIGHTS,
+    RAW_MAX,
+    RAW_MIN,
     STATUS_WEIGHTS,
     SEVERITY_WEIGHTS,
     WARD_WEIGHTS,
@@ -13,32 +15,31 @@ from config import (
 )
 
 
-def compute_priority(request: RankingRequest) -> RankingResponse:
-    """
-    Computes a clinical urgency score from weighted input factors.
+def compute_priority(request):
 
-    Formula:
-        raw_score = disease_weight + status_weight + severity_weight + ward_weight
-        priority_score = normalize(raw_score) → clamped to [1, 10]
-    """
-    disease_weight   = DISEASE_WEIGHTS.get(request.test_for.value, DEFAULT_DISEASE_WEIGHT)
-    status_weight    = STATUS_WEIGHTS.get(request.status.value, DEFAULT_STATUS_WEIGHT)
-    severity_weight  = SEVERITY_WEIGHTS.get(request.patient_severity.value, DEFAULT_SEVERITY_WEIGHT)
-    ward_weight      = WARD_WEIGHTS.get(request.ward_type.value, DEFAULT_WARD_WEIGHT)
+    test_type = request.test_data.type
+    result = request.test_data.result.upper()
 
-    raw_score = disease_weight + status_weight + severity_weight + ward_weight
+    severity = None
+    ward = None
 
-    priority_score = normalize_score(raw_score)
-    priority_level = get_priority_level(priority_score)
+    if request.patient_context:
+        severity = request.patient_context.severity
+        ward = request.patient_context.ward_type
 
-    return RankingResponse(
-        priority_score=priority_score,
-        priority_level=priority_level,
-        score_breakdown={
-            "disease_weight":  disease_weight,
-            "status_weight":   status_weight,
-            "severity_weight": severity_weight,
-            "ward_weight":     ward_weight,
-            "raw_score":       raw_score,
-        },
+    # Correct weight extraction
+    disease_weight = DISEASE_WEIGHTS.get(test_type, DEFAULT_DISEASE_WEIGHT)
+    status_weight = STATUS_WEIGHTS.get(result, DEFAULT_STATUS_WEIGHT)
+    severity_weight = SEVERITY_WEIGHTS.get(severity, DEFAULT_SEVERITY_WEIGHT)
+    ward_weight = WARD_WEIGHTS.get(ward, DEFAULT_WARD_WEIGHT)
+
+    raw_score = (
+        disease_weight
+        + status_weight
+        + severity_weight
+        + ward_weight
     )
+
+    print("Raw score:", raw_score)
+
+    return normalize_score(raw_score, RAW_MIN, RAW_MAX)
