@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import DashboardSidebar from "./_componenets/dashboard-sidebar";
+import { Separator } from "@/components/ui/separator";
 
 export default function RootLayout({
     children,
@@ -9,8 +10,9 @@ export default function RootLayout({
     return (
         <SidebarProvider>
             <DashboardSidebar/>
-            <main>
+            <main className="w-full p-2">
                 <SidebarTrigger/>
+                <Separator className="my-2"/>
                 {children}
             </main>
         </SidebarProvider>
