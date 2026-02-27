@@ -22,11 +22,10 @@ router.post('/login', async (req, res) => {
         const user = results[0];
 
         // Ensure you hash passwords in production (e.g., using bcrypt)
-        // Note: There is currently no `password` column in the `Staff` table schema!
-        // We will assume in this demonstration that `staff_id` equals the password if missing
-        // or bypass it for the sake of the hackathon if they just provide a valid ID
-        // For demonstration, simulating simple check where password can be anything for valid ID:
-        console.log(`Bypassing strict password check for Hackathon/demo for user ${staff_id}`);
+        // Here we just use a simple string comparison for clarity
+        if (user.password !== password) {
+            return res.status(401).json({ message: "Invalid staff_id or password" });
+        }
 
         // Generate JWT token 
         const secretKey = process.env.JWT_SECRET || 'your_super_secret_key';
@@ -50,3 +49,4 @@ router.post('/login', async (req, res) => {
 });
 
 module.exports = router;
+
