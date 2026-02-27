@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const pool = require('../config/db'); // Use the MySQL pool we created earlier
+const jwt = require('jsonwebtoken'); // You might need to install this: npm i jsonwebtoken
+const db = require('../config/db.js')
 
 router.post('/login', async (req, res) => {
     const { staff_id, password } = req.body;
@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { staff_id: user.staff_id, role: user.role, name: user.name },
             secretKey,
-            { expiresIn: '3h' }
+            { expiresIn: '1h' }
         );
 
         // Required response according to specification

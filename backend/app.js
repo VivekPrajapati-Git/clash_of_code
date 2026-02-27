@@ -24,6 +24,9 @@ app.use('/api/neo4j', neo4jRoutes);
 const reportRoutes = require('./routes/report');
 app.use('/api/report', reportRoutes);
 
+const interactionRoutes = require('./routes/interactionRoutes');
+app.use('/api/interactions', interactionRoutes);
+
 app.get('/', (req, res) => {
     res.send("Hello world");
 })
