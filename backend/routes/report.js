@@ -26,7 +26,7 @@ const reportSchema = new mongoose.Schema({
 const Report = mongoose.model('Report', reportSchema);
 
 // GET /api/report?data={...json...}
-router.get('/', async (req, res) => {
+router.get('/api/report', async (req, res) => {
     try {
         // Since it's a GET request, the payload should ideally come from a query parameter
         // Assumes you hit /api/report?data={"report_id":"..."}
