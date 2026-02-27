@@ -1,6 +1,36 @@
 const pool = require('../config/db');
 const driver = require('../config/neo4j');
 
+const registerPatient = async (req, res) => {
+    const { pfid } = req.body || {};
+
+    if (!pfid) {
+        return res.status(400).json({ error: 'pfid is required to register a patient.' });
+    }
+
+    try {
+        // [MySQL] Check if patient already exists
+        const [existing] = await pool.query('SELECT * FROM Patients WHERE pfid = ?', [pfid]);
+        if (existing.length > 0) {
+            return res.status(409).json({ error: 'Patient already exists with this pfid' });
+        }
+
+        // [MySQL] Insert into Patients table with 'STABLE' default and 'Stable' severity
+        await pool.query(
+            "INSERT INTO Patients (pfid, current_status, severity) VALUES (?, 'STABLE', 'Stable')",
+            [pfid]
+        );
+
+        res.status(201).json({
+            message: "Patient registered successfully",
+            pfid
+        });
+    } catch (error) {
+        console.error('Error registering patient:', error);
+        res.status(500).json({ error: 'Internal server error while registering patient' });
+    }
+};
+
 const admitPatient = async (req, res) => {
     const { pfid } = req.body || {};
 
@@ -142,6 +172,7 @@ const dischargePatient = async (req, res) => {
 };
 
 module.exports = {
+    registerPatient,
     admitPatient,
     transferPatient,
     dischargePatient
