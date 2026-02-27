@@ -66,13 +66,13 @@ async function syncToNeo4j() {
           MERGE (p)-[:VISITED]->(l)
         `, { target_id, location_id });
 
-                // If staff acted on patient, it's a TREATED interaction
+                // If staff acted on patient, link them using the action type!
                 if (isActorStaff) {
                     await session.run(`
             MATCH (a:Staff {id: $actor_id})
             MATCH (p:Patient {id: $target_id})
-            MERGE (a)-[r:TREATED {time: $timeStr, action: $action_type}]->(p)
-          `, { actor_id, target_id, timeStr, action_type });
+            MERGE (a)-[r:\`${action_type}\` {time: $timeStr}]->(p)
+          `, { actor_id, target_id, timeStr });
                 }
             } else {
                 // Target is Equipment
@@ -82,13 +82,13 @@ async function syncToNeo4j() {
           MERGE (e)-[:LOCATED_AT]->(l)
         `, { target_id, location_id });
 
-                // If staff acted on equipment, it's a USED_DEVICE interaction
+                // If staff acted on equipment, link them using the action type!
                 if (isActorStaff) {
                     await session.run(`
             MATCH (a:Staff {id: $actor_id})
             MATCH (e:Equipment {id: $target_id})
-            MERGE (a)-[r:USED_DEVICE {time: $timeStr, action: $action_type}]->(e)
-          `, { actor_id, target_id, timeStr, action_type });
+            MERGE (a)-[r:\`${action_type}\` {time: $timeStr}]->(e)
+          `, { actor_id, target_id, timeStr });
                 }
             }
         }
