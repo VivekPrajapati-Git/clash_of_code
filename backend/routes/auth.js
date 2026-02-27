@@ -2,8 +2,6 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken'); // You might need to install this: npm i jsonwebtoken
 const db = require('../config/db.js')
-const jwt = require('jsonwebtoken'); // You might need to install this: npm i jsonwebtoken
-const db = require('../config/db.js')
 
 // Replace this with your actual database connection pool/instance
 // const db = require('../utils/db');
