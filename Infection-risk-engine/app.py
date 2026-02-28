@@ -14,8 +14,7 @@ Run:
 
 from fastapi import FastAPI, HTTPException
 from schemas import RiskRequest, RiskResponse
-from risk_model_engine import predict_risk
-# ---------------------------------------------------------------------------
+from risk_model_engine import predict_risk, _load_artifacts# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
