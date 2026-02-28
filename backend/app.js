@@ -24,6 +24,9 @@ app.use('/api/stats', statsRoutes);
 const equipmentRoutes = require('./routes/equipmentRoutes');
 app.use('/api/equipment', equipmentRoutes);
 
+const locationRoutes = require('./routes/locationRoutes');
+app.use('/api/location', locationRoutes);
+
 const neo4jRoutes = require('./routes/neo4jRoutes');
 app.use('/api/neo4j', neo4jRoutes);
 

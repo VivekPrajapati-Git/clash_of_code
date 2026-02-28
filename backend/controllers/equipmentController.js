@@ -85,12 +85,50 @@ const equipmentController = {
     // 3. Get all equipment
     getAllEquipment: async (req, res) => {
         try {
-            const [equipment] = await pool.query('SELECT * FROM Equipment ORDER BY equip_id ASC');
+            // Get all equipment
+            const [equipmentRows] = await pool.query('SELECT * FROM Equipment ORDER BY equip_id ASC');
+
+            // Get the latest location for each equipment that was tracked
+            const [interactions] = await pool.query(`
+                SELECT target_id as equip_id, location_id 
+                FROM Hospital_Interactions 
+                WHERE log_id IN (
+                    SELECT MAX(log_id) 
+                    FROM Hospital_Interactions 
+                    WHERE target_id LIKE 'EQ_%' AND location_id IS NOT NULL 
+                    GROUP BY target_id
+                )
+            `);
+
+            // Map location data for quick lookup
+            const locationMap = {};
+            interactions.forEach(intel => {
+                locationMap[intel.equip_id] = intel.location_id;
+            });
+
+            // Tracking totals
+            let totalInUse = 0;
+            let totalContaminated = 0;
+
+            // Combine data and count statuses
+            const enrichedEquipment = equipmentRows.map(eq => {
+                if (eq.status === 'IN_USE') totalInUse++;
+                if (eq.status === 'CONTAMINATED') totalContaminated++;
+
+                return {
+                    ...eq,
+                    current_location: locationMap[eq.equip_id] || 'UNKNOWN' // If never moved/scanned, unknown
+                };
+            });
 
             return res.status(200).json({
                 message: "Equipment retrieved successfully",
-                count: equipment.length,
-                equipment: equipment
+                stats: {
+                    total: equipmentRows.length,
+                    in_use: totalInUse,
+                    contaminated: totalContaminated
+                },
+                equipment: enrichedEquipment
             });
         } catch (error) {
             console.error("Error fetching equipment:", error);

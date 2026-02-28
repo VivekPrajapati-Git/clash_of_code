@@ -45,12 +45,12 @@ const statsController = {
                 pendingReports = await Report.countDocuments({ "clinical_verification.status": "PENDING" });
             }
 
-            // // 5. Recent Interactions (Last 10)
-            // const [recentInteractions] = await pool.query(
-            //     `SELECT log_id, actor_id, target_id, location_id, action_type, timestamp 
-            //      FROM Hospital_Interactions 
-            //      ORDER BY timestamp DESC LIMIT 10`
-            // );
+            // 5. Recent Interactions (Last 10)
+            const [recentInteractions] = await pool.query(
+                `SELECT log_id, actor_id, target_id, location_id, action_type, timestamp 
+                 FROM Hospital_Interactions 
+                 ORDER BY timestamp DESC LIMIT 10`
+            );
 
             return res.status(200).json({
                 message: "Stats retrieved successfully",
@@ -61,7 +61,7 @@ const statsController = {
                     contaminated_equipment: contaminatedEquipment,
                     pending_reports: pendingReports
                 },
-                // recentInteractions: recentInteractions
+                recentInteractions: recentInteractions
             });
 
         } catch (error) {

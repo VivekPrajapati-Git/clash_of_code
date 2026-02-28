@@ -62,6 +62,12 @@ const admitPatient = async (req, res) => {
             ['system_trigger', pfid, location_id, 'AUTO_TRIGGER', new Date(timestamp)]
         );
 
+        // [MySQL] Increment current_patients count for this location
+        await pool.query(
+            `UPDATE Location SET current_patients = current_patients + 1 WHERE location_id = ?`,
+            [location_id]
+        );
+
         // [Neo4j] Create VISITED relationship
         await session.run(
             `
@@ -117,6 +123,18 @@ const transferPatient = async (req, res) => {
             ['system_trigger', pfid, new_location_id, 'AUTO_TRIGGER', new Date(timestamp)]
         );
 
+        // [MySQL] Decrement old location, increment new location
+        if (previous_location !== 'UNKNOWN') {
+            await pool.query(
+                `UPDATE Location SET current_patients = current_patients - 1 WHERE location_id = ?`,
+                [previous_location]
+            );
+        }
+        await pool.query(
+            `UPDATE Location SET current_patients = current_patients + 1 WHERE location_id = ?`,
+            [new_location_id]
+        );
+
         // [Neo4j] Create new VISITED relationship
         await session.run(
             `
@@ -152,6 +170,15 @@ const dischargePatient = async (req, res) => {
     const timestamp = new Date().toISOString();
 
     try {
+        // Find the patient's previous location from MySQL
+        const [rows] = await pool.query(
+            `SELECT location_id FROM Hospital_Interactions 
+             WHERE target_id = ? AND action_type = 'AUTO_TRIGGER'
+             ORDER BY timestamp DESC LIMIT 1`,
+            [pfid]
+        );
+        const previous_location = rows.length > 0 ? rows[0].location_id : null;
+
         // [MySQL] Insert into Hospital_Interactions Log
         await pool.query(
             `INSERT INTO Hospital_Interactions 
@@ -159,6 +186,14 @@ const dischargePatient = async (req, res) => {
             VALUES (?, ?, NULL, ?, ?)`,
             ['system_trigger', pfid, 'DISCHARGE', new Date(timestamp)]
         );
+
+        // [MySQL] Decrement current_patients for their last known location
+        if (previous_location && previous_location !== 'UNKNOWN') {
+            await pool.query(
+                `UPDATE Location SET current_patients = current_patients - 1 WHERE location_id = ?`,
+                [previous_location]
+            );
+        }
 
         res.status(200).json({
             message: "Patient discharged",
