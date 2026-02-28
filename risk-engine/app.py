@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import torch
 from torch_geometric.data import Data
+import httpx
 
 # Import your model definition
 from model import RiskGAT
@@ -25,67 +26,101 @@ async def startup_event():
     except Exception as e:
         print(f"Warning: Could not load model upon startup. Error: {e}")
 
-
-# --- Pydantic Models for Input Validation ---
-class Edge(BaseModel):
-    source: int
-    target: int
-    time_delta: float
-
-class NodeFeature(BaseModel):
-    node_id: int
-    features: List[float] # Expected to be [is_patient, is_staff, is_equipment, is_location]
-    node_type: int # 0=Patient, 1=Staff, 2=Equipment, 3=Location
-
-class GraphDataPayload(BaseModel):
-    nodes: List[NodeFeature]
-    edges: List[Edge]
-
-
-# --- Route 1: Process Patient Graph and Predict Risk ---
-@app.post("/ai/predict/risk/{patient_id}")
-async def process_patient_graph(patient_id: str, payload: GraphDataPayload, top_k: int = 5):
+# --- Route : Process Patient Graph and Predict Risk ---
+@app.post("/ai/predict/risk")
+async def process_patient_graph(request: Request, top_k: int = 5):
     """
-    Receives specific patient graph data from Neo4j backend, constructs PyTorch Geometric Data,
-    runs the RiskGAT model, and returns the highest risk equipment.
+    Receives a patient ID and backend URL, OR a direct Neo4j Graph payload.
+    It constructs the PyTorch Geometric Data, runs RiskGAT exactly, and returns the result.
     """
     global model
     
     if model is None:
         raise HTTPException(status_code=500, detail="Model is not loaded.")
+        
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body format.")
+
+    # 1. Flexibility: Check if user is passing a fetching URL vs direct graph payload
+    # Handles keys like "backend_url", "url", "patient_id", "passientid"
+    patient_id = body.get("patient_id") or body.get("passientid") or body.get("id") or "UNKNOWN"
+    backend_url = body.get("backend_url") or body.get("url")
+    
+    # If there's a URL, fetch the graph dynamically from backend!
+    if backend_url:
+        fetch_url = f"{backend_url.rstrip('/')}/api/neo4j/patient/{patient_id}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(fetch_url)
+                response.raise_for_status()
+                raw_payload = response.json()
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch from backend at {fetch_url}: {str(e)}")
+    else:
+        # Otherwise, assume the payload itself is the Neo4j graph data directly (e.g. {"message": "...", "data": {"nodes": [], "links": []}})
+        raw_payload = body
+        if "data" not in raw_payload:
+            raise HTTPException(status_code=422, detail="Missing 'data' or 'url' in payload. Please provide backend URL or full Neo4j Graph Data.")
+
+    # Validate Neo4j Data format dynamically
+    graph_msg = raw_payload.get("message", "Processing graph")
+    graph_data = raw_payload.get("data", {})
+    nodes_data = graph_data.get("nodes", [])
+    links_data = graph_data.get("links", [])
     
     try:
-        # 1. Parse Nodes
-        num_nodes = len(payload.nodes)
+        num_nodes = len(nodes_data)
         x = torch.zeros((num_nodes, 4), dtype=torch.float)
-        node_types = []
         
-        # Sort nodes by ID just to be safe it aligns with the tensor index
-        sorted_nodes = sorted(payload.nodes, key=lambda n: n.node_id)
-        
+        # 2. Map string Node IDs (e.g. "PFID_X") to integer index IDs (0, 1, 2...) for PyTorch edge_index
+        node_id_to_idx = {}
+        idx_to_node_id = {}
         equipment_indices = []
-        for idx, node in enumerate(sorted_nodes):
-            x[idx] = torch.tensor(node.features, dtype=torch.float)
-            node_types.append(node.node_type)
+        
+        # Define Group Mapping array matching our trained model's one-hot encodings:
+        group_to_type = { "Patient": 0, "Staff": 1, "Equipment": 2, "Location": 3 }
+        
+        for idx, node in enumerate(nodes_data):
+            node_id = node.get("id", str(idx))
+            node_group = node.get("group", "Patient")
+            node_id_to_idx[node_id] = idx
+            idx_to_node_id[idx] = node_id
             
-            if node.node_type == 2: # Equipment
+            node_type = group_to_type.get(node_group, 0)
+            
+            feature = [0.0, 0.0, 0.0, 0.0]
+            if 0 <= node_type <= 3:
+                feature[node_type] = 1.0
+                
+            x[idx] = torch.tensor(feature, dtype=torch.float)
+            if node_type == 2:
                 equipment_indices.append(idx)
                 
-        # 2. Parse Edges
+        # 3. Parse Links (Edges)
         edge_index_list = []
         edge_attr_list = []
         
-        for edge in payload.edges:
-            edge_index_list.append([edge.source, edge.target])
-            edge_attr_list.append(edge.time_delta)
+        for link in links_data:
+            source = link.get("source")
+            target = link.get("target")
+            if source not in node_id_to_idx or target not in node_id_to_idx:
+                continue
+                
+            src_idx = node_id_to_idx[source]
+            dst_idx = node_id_to_idx[target]
+            edge_index_list.append([src_idx, dst_idx])
+            edge_attr_list.append(1.0)
+            
+        if not edge_index_list:
+            raise ValueError("No valid edges found linking the provided nodes.")
             
         edge_index = torch.tensor(edge_index_list, dtype=torch.long).t().contiguous()
         edge_attr = torch.tensor(edge_attr_list, dtype=torch.float).unsqueeze(1)
         
-        # 3. Create the PyTorch Geometric Data object
+        # 4. Create PyTorch Geometric Data object
         data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
-        
-        # 4. Create an equipment mask so we know which nodes to predict on
         mask = torch.zeros(num_nodes, dtype=torch.bool)
         if equipment_indices:
             mask[equipment_indices] = True
@@ -96,55 +131,32 @@ async def process_patient_graph(patient_id: str, payload: GraphDataPayload, top_
             out = model(data)
             
         predictions = out.squeeze()
-        
-        # 6. Extract only equipment predictions using the mask
         equip_predictions = predictions[mask]
         
-        # Gather all global node IDs that correspond to equipment
-        equipment_node_ids = torch.nonzero(mask).squeeze().tolist()
-        
-        # Handle case where there is only 1 or 0 equipment nodes
-        if isinstance(equipment_node_ids, int):
-            equipment_node_ids = [equipment_node_ids]
+        if isinstance(equipment_indices, int):
+            equipment_indices = [equipment_indices]
             equip_predictions = equip_predictions.unsqueeze(0)
             
-        if not equipment_node_ids:
-             return {
-                 "status": "success", 
-                 "patient_id": patient_id,
-                 "message": "No equipment nodes found in the graph to predict risk on.", 
-                 "high_risk_equipment": []
-             }
+        if not equipment_indices:
+             return { "status": "success", "message": "No equipment found in graph.", "high_risk_equipment": [] }
 
-        # 7. Sort by highest risk
+        # 6. Sort & Format
         sorted_probs, sorted_indices = torch.sort(equip_predictions, descending=True)
-        
-        # 8. Format Output
         results = []
-        limit = min(top_k, len(equipment_node_ids))
-        
+        limit = min(top_k, len(equipment_indices))
         for i in range(limit):
-             # Original index within the filtered equipment list
              orig_idx = sorted_indices[i].item()
-             
-             # Map back to the global Node ID in the graph
-             global_node_id = equipment_node_ids[orig_idx]
-             
+             global_node_id = idx_to_node_id[equipment_indices[orig_idx]]
              prob = sorted_probs[i].item()
-             
-             results.append({
-                 "node_id": global_node_id,
-                 "risk_probability": round(prob, 4),
-                 "status": "DANGER" if prob > 0.5 else "SAFE"
-             })
+             results.append({ "node_id": global_node_id, "risk_probability": round(prob, 4), "status": "DANGER" if prob > 0.5 else "SAFE" })
              
         return {
             "status": "success",
-            "patient_id": patient_id,
-            "total_equipment_evaluated": len(equipment_node_ids),
-            "high_risk_equipment": results
+            "message": graph_msg,
+            "total_equipment_evaluated": len(equipment_indices),
+            "high_risk_equipment": results,
+            "graph_data": graph_data
         }
-        
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process graph and predict risk: {str(e)}")
 
