@@ -123,11 +123,13 @@ const equipmentController = {
 
             return res.status(200).json({
                 message: "Equipment retrieved successfully",
-                stats: {
-                    total: equipmentRows.length,
-                    in_use: totalInUse,
-                    contaminated: totalContaminated
-                },
+                total: equipmentRows.length,
+                stats: [
+                    { status: "IN_USE", count: totalInUse },
+                    { status: "CONTAMINATED", count: totalContaminated },
+                    { status: "CLEAN", count: equipmentRows.length - (totalContaminated + totalInUse) }
+                ],
+
                 equipment: enrichedEquipment
             });
         } catch (error) {
