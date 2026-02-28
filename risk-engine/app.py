@@ -152,10 +152,8 @@ async def process_patient_graph(request: Request, top_k: int = 5):
              
         return {
             "status": "success",
-            "message": graph_msg,
             "total_equipment_evaluated": len(equipment_indices),
-            "high_risk_equipment": results,
-            "graph_data": graph_data
+            "high_risk_equipment": results
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process graph and predict risk: {str(e)}")
