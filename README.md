@@ -2,7 +2,12 @@
 
 > **An AI-powered, real-time hospital management platform designed to track patient flow, manage equipment, and proactively predict infection outbreaks using Graph Neural Networks.**
 
-![Dashboard Preview](frontend/public/window.svg) <!-- You can replace this with an actual screenshot later -->
+![WhatsApp Image 2026-02-28 at 11 05 44 AM](https://github.com/user-attachments/assets/25a64987-cb34-4087-8817-08fb273230ba)
+![WhatsApp Image 2026-02-28 at 11 06 08 AM](https://github.com/user-attachments/assets/7a2a7d69-233a-41fc-b88c-001a023ba246)
+![WhatsApp Image 2026-02-28 at 11 05 20 AM](https://github.com/user-attachments/assets/154fc104-ea49-4c01-937a-eb2644109ea0)
+![WhatsApp Image 2026-02-28 at 11 04 48 AM](https://github.com/user-attachments/assets/4c991f46-6248-486a-af45-2df61dce8283)
+
+
 
 ---
 
