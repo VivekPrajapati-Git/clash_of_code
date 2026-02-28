@@ -113,8 +113,8 @@ const data = [
 ]
 
 const page = async () => {
-  const res = await fetch("http://192.168.0.147:3000/api/equipment")
-  .then(res => res.json())
+  const res = await fetch("http://192.168.0.147:3000/api/equipment", { next: { revalidate: 30 } })
+    .then(res => res.json())
   return (
     <div>
       <div className="flex gap-2 container mx-auto ">
