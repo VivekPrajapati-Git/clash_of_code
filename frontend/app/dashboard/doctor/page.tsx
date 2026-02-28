@@ -54,7 +54,7 @@ const page = async () => {
     },
   ]
 
-  const res = await fetch(process.env.BASE_URL + "/doctor/reports/pending")
+  const res = await fetch("http://192.168.0.147:3000/api/doctor/reports/pending")
     .then(res => res.json())
     .catch(err => console.error(err))
 

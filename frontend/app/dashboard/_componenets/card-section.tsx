@@ -1,35 +1,36 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 type CardSectionInput = {
-    "active_infections": number,
-    "pending_doctor_verifications": number,
-    "high_risk_patients": number,
+    "total_patients": number,
+    "isolated_patients":number,
+    "pending_reports": number,
+    "critical_patients": number,
     "contaminated_equipment": number,
 }
-const CardSection = (data: CardSectionInput) => {
+const CardSection = ({stats}:{stats:CardSectionInput}) => {
     return (
         <section className='grid grid-cols-2 gap-2'>
             <Card className='@container/card'>
                 <CardHeader>
-                    <CardTitle>Active Infection</CardTitle>
+                    <CardTitle>Total Patients</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className='text-3xl font-bold'>{data?.active_infections}</p>
+                    <p className='text-3xl font-bold'>{stats?.total_patients}</p>
                 </CardContent>
             </Card>
             <Card className='@container/card'>
                 <CardHeader>
-                    <CardTitle>Pending Doctor Verification</CardTitle>
+                    <CardTitle>Pending Reports</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className='text-3xl font-bold'>{data?.pending_doctor_verifications}</p>
+                    <p className='text-3xl font-bold'>{stats?.pending_reports}</p>
                 </CardContent>
             </Card>
             <Card className='@container/card'>
                 <CardHeader>
-                    <CardTitle>High Risk Patients</CardTitle>
+                    <CardTitle>Critical Risk Patients</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className='text-3xl font-bold'>{data?.high_risk_patients}</p>
+                    <p className='text-3xl font-bold'>{stats?.critical_patients}</p>
                 </CardContent>
             </Card>
             <Card className='@container/card'>
@@ -37,7 +38,7 @@ const CardSection = (data: CardSectionInput) => {
                     <CardTitle>Contaminated Equipment</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className='text-3xl font-bold'>{data?.contaminated_equipment}</p>
+                    <p className='text-3xl font-bold'>{stats?.contaminated_equipment}</p>
                 </CardContent>
             </Card>
         </section>
