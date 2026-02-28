@@ -10,6 +10,7 @@
 #   GET  /                  — health check
 #   GET  /health            — service + ML dependency status
 #   POST /extract-features  — score a single patient
+#   GET  /predict/{id}      — fetch graph from Node.js + score in one call  ← NEW
 #   POST /extract-all       — score every patient, sorted by risk
 #
 # Run:
@@ -40,9 +41,12 @@ from scorer import compute_rule_score
 # Config
 # ---------------------------------------------------------------
 
-ML_SERVICE_URL  = os.getenv("ML_SERVICE_URL", "http://localhost:8000")
-ML_PREDICT_PATH = "/predict-risk"
-ML_TIMEOUT_SEC  = 3.0   # fail fast — don't block dashboard for a slow ML service
+ML_SERVICE_URL   = os.getenv("ML_SERVICE_URL",   "http://localhost:8000")
+NODE_SERVICE_URL = os.getenv("NODE_SERVICE_URL", "http://localhost:3000")
+ML_PREDICT_PATH  = "/predict-risk"
+NODE_GRAPH_PATH  = "/ai/predict/risk"   # GET {NODE_SERVICE_URL}{NODE_GRAPH_PATH}/{patient_id}
+ML_TIMEOUT_SEC   = 3.0
+NODE_TIMEOUT_SEC = 5.0
 
 RULE_WEIGHT = 0.6
 ML_WEIGHT   = 0.4
@@ -280,3 +284,77 @@ async def extract_all(request: FeatureRequest) -> list[FeatureResponse]:
 
     results = sorted(results, key=lambda r: r.final_score.score, reverse=True)
     return results
+
+@app.get("/predict/{patient_id}", response_model=FeatureResponse, tags=["Predict"])
+async def predict_from_node(patient_id: str) -> FeatureResponse:
+    """
+    **Primary demo endpoint.**
+
+    Fetches the Neo4j graph for `patient_id` directly from the Node.js
+    backend, extracts features, calls the ML engine, and returns the
+    full blended risk score — all in one call.
+
+    ```
+    GET http://localhost:8001/predict/PFID_B_6436
+    ```
+
+    Internally calls:
+        1. GET  http://localhost:3000/ai/predict/risk/{patient_id}  → graph JSON
+        2. POST http://localhost:8000/predict-risk                  → ML probability
+        3. Blends rule score + ML probability → final_score
+
+    Override Node.js base URL with env var:
+        NODE_SERVICE_URL=http://your-server:3000
+    """
+    node_url = f"{NODE_SERVICE_URL}{NODE_GRAPH_PATH}/{patient_id}"
+
+    # Step 1 — fetch graph from Node.js
+    try:
+        async with httpx.AsyncClient(timeout=NODE_TIMEOUT_SEC) as client:
+            resp = await client.get(node_url)
+            resp.raise_for_status()
+            raw = resp.json()
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Node.js service timed out fetching graph for '{patient_id}'. "
+                   f"Is it running at {NODE_SERVICE_URL}?",
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Node.js returned {e.response.status_code} for patient '{patient_id}'.",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Could not reach Node.js at {NODE_SERVICE_URL}. Error: {str(e)}",
+        )
+
+    # Step 2 — parse and validate graph structure
+    # Handle both { nodes, links } and { data: { nodes, links } } shapes
+    graph_payload = raw.get("data", raw)
+
+    try:
+        graph = GraphData(**graph_payload)
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Graph JSON from Node.js could not be parsed: {str(e)}. "
+                   f"Expected {{nodes: [...], links: [...]}}",
+        )
+
+    # Step 3 — validate patient exists in the graph
+    patient_ids = {n.id for n in graph.nodes if n.group == GROUP_PATIENT}
+    if patient_id not in patient_ids:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Patient '{patient_id}' not found in graph returned by Node.js. "
+                f"Patients present: {sorted(patient_ids)}"
+            ),
+        )
+
+    # Step 4 — extract, score, blend
+    ref_time = datetime.now(timezone.utc).replace(tzinfo=None)
+    return await _build_response(patient_id, graph, ref_time)
