@@ -29,9 +29,8 @@ interface NetworkGraphProps {
 const groupColors: Record<string, string> = {
   Patient: "#c00707",
   Location: "#16a34a",
-  Doctor: "#f59e0b",
+  Staff: "#f59e0b",
   Equipment: "#8494ff",
-  default: "#9ca3af",
 }
 
 export function NetworkGraph({ data }: NetworkGraphProps) {

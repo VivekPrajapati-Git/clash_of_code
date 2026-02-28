@@ -1,5 +1,5 @@
 import { SidebarHeader, SidebarContent, SidebarGroup, SidebarFooter, Sidebar, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar'
-import { HeartPulse, HomeIcon, LocateFixedIcon, LogsIcon, NotepadText, ToolCaseIcon, User, UsersIcon } from 'lucide-react'
+import { HeartPlus, HeartPulse, HomeIcon, LocateFixedIcon, LogsIcon, NotepadText, ToolCaseIcon, User, UsersIcon } from 'lucide-react'
 
 const navs = [
     {
@@ -28,11 +28,6 @@ const navs = [
         icon: LocateFixedIcon
     },
     {
-        label: "Patient",
-        link: "patient",
-        icon: User
-    },
-    {
         label: "Logs",
         link: "logs",
         icon: LogsIcon
@@ -41,19 +36,17 @@ const navs = [
         label: "Interaction",
         link: "interaction",
         icon: LogsIcon
-    },
-    {
-        label: "Report",
-        link: "report",
-        icon: NotepadText
-    },
+    }
 ]
 
 const DashboardSidebar = () => {
     return (
         <Sidebar>
             <SidebarHeader >
-                <h1 className='text-2xl text-primary'>HC</h1>
+                <h1 className='text-2xl text-pretty font-bold flex items-center'>Health
+                    <span className='text-primary'>Care</span>
+                    <HeartPlus className='size-6 text-red-600'></HeartPlus>
+                </h1>
             </SidebarHeader>
             <SidebarContent>
                 <SidebarMenu>
