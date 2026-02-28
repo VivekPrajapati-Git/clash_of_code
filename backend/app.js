@@ -25,6 +25,12 @@ app.use('/api/neo4j', neo4jRoutes);
 const reportRoutes = require('./routes/report');
 app.use('/api/report', reportRoutes);
 
+const doctorRoutes = require('./routes/doctorRoutes');
+app.use('/api/doctor', doctorRoutes);
+
+const techRoutes = require('./routes/techRoutes');
+app.use('/api/tech', techRoutes);
+
 const interactionRoutes = require('./routes/interactionRoutes');
 app.use('/api/interactions', interactionRoutes);
 
