@@ -6,8 +6,7 @@ import { NetworkGraph } from '../_components/network-work'
 const page = async ({ params }: { params: Params }) => {
   // const data = testData.data
   const { id } = await params
-  console.log(id)
-  const res = await fetch(process.env.BASE_URL + "/neo4j/patient/"+id, { next: { revalidate: 90 } }).then(data => data.json())
+  const res = await fetch(process.env.BASE_URL + "/neo4j/patient/" + id, { next: { revalidate: 90 } }).then(data => data.json())
   return (
     <div>
       <NetworkGraph data={res.data} />

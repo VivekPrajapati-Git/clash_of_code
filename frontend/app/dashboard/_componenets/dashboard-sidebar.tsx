@@ -45,7 +45,8 @@ const DashboardSidebar = () => {
             <SidebarHeader >
                 <h1 className='text-2xl text-pretty font-bold flex items-center'>Health
                     <span className='text-primary'>Care</span>
-                    <HeartPlus className='size-6 text-red-600'></HeartPlus> </h1>
+                    <HeartPlus className='size-6 text-red-600'></HeartPlus>
+                </h1>
             </SidebarHeader>
             <SidebarContent>
                 <SidebarMenu>
